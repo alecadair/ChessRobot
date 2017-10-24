@@ -1,6 +1,52 @@
 #include "hall_array_library.h"
 
 uint16_t biases[NUM_SQUARES][NUM_SQUARES];
+void swap(char* a, char* b)
+{
+ int temp = *a;
+ *a = *b;
+ *b = temp;
+}
+/* A utility function to reverse a string  */
+void reverse(char str[], int length){
+    int start = 0;
+    int end = length -1;
+    while (start < end){
+        swap((str+start), (str+end));
+        start++;
+        end--;
+    }
+}
+// Implementation of itoa()
+char* itoa(int num, char* str, int base){
+    int i = 0;
+    char isNegative = 0;
+    /* Handle 0 explicitely, otherwise empty string is printed for 0 */
+    if (num == 0){
+        str[i++] = '0';
+        str[i] = '\0';
+        return str;
+    }
+    // In standard itoa(), negative numbers are handled only with 
+    // base 10. Otherwise numbers are considered unsigned.
+    if (num < 0 && base == 10){
+        isNegative = 1;
+        num = -num;
+    }
+    // Process individual digits
+    while (num != 0){
+        int rem = num % base;
+        str[i++] = (rem > 9)? (rem-10) + 'a' : rem + '0';
+        num = num/base;
+    }
+    // If number is negative, append '-'
+    if (isNegative)
+        str[i++] = '-';
+    str[i] = '\0'; // Append string terminator
+    // Reverse the string
+    reverse(str, i);
+    return str;
+}
 
 unsigned char** get_board_state(){
 	return 0;
@@ -14,6 +60,17 @@ void initialize_biases(){
 			biases[i][j] = 0;
 		}
 	}
+}
+
+void transmit_string_usart(char* str){
+	char c = str[0];
+	unsigned i = 0;
+	while(c != '\0'){
+		transmit_char_usart(c);
+		i ++;
+		c = str[i];
+	}
+	return;
 }
 
 void transmit_char_usart(char c){
@@ -69,8 +126,6 @@ void pseudo_main(void){
 			biases[i][j] = 0;
 		}
 	}
-	
-
 	initialize_biases();
 	char str[7];
 	str[0] = 'c';
@@ -93,7 +148,7 @@ void pseudo_main(void){
 	GPIOB->BSRR |= GPIO_BSRR_BR_14;
 	GPIOB->BSRR |= GPIO_BSRR_BR_15;
 	
-	GPIOB->BSRR |= GPIO_BSRR_BS_12;
+	//GPIOB->BSRR |= GPIO_BSRR_BS_12;
 
 	ADC1->CR |= ADC_CR_ADSTART;//turn on adc
   while (1)
@@ -102,13 +157,14 @@ void pseudo_main(void){
 			//implement time-out
 		}
 		reading = ADC1->DR;
-		transmit_voltage_usart(reading);
-		HAL_Delay(1000);
-
-  /* USER CODE END WHILE */
-
-  /* USER CODE BEGIN 3 */
-
+		int string_int = reading & 0x0fff;
+		char buffer [sizeof(uint16_t)*8+1];
+		itoa(string_int,buffer,10);
+		//utoa(reading,buffer,10);
+		transmit_string_usart(buffer);
+		transmit_char_usart('\r');
+		transmit_char_usart('\n');
+		HAL_Delay(500);
   }
   /* USER CODE END 3 */
 }
