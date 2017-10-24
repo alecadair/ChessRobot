@@ -1,6 +1,8 @@
 #include "hall_array_library.h"
 
-uint16_t biases[NUM_SQUARES][NUM_SQUARES];
+uint16_t biases[8][8];
+uint16_t board_state[8][8];
+
 void swap(char* a, char* b)
 {
  int temp = *a;
@@ -101,32 +103,85 @@ void transmit_voltage_usart(uint16_t val){
 	transmit_char_usart('\n');
 }
 
-uint16_t** scan_array(){
-	uint16_t array_values[64][64];
-	for(unsigned a = 0; a < 2; a++){
-		for(unsigned b = 0; b < 2; b++){
-			for(unsigned c = 0; c < 2; c++){
-				for(unsigned d = 0; d < 2; d++){
-					for(unsigned e = 0; e < 2; e++){
-						for(unsigned f = 0; f <2; f++){
-							
-						}
-					}
-				}
+uint16_t** scan_array(uint16_t board_buffer[8][8]){
+	//uint16_t array_values[64][64];
+	for(unsigned i = 0; i < 4; i++){
+		switch (i){
+			case 0:
+				turn_off_all();
+			break;
+			case 1:
+				turn_off_all();
+				turn_on_a();			
+			break;
+			case 2:
+				turn_off_all();
+				turn_on_b();
+			break;
+			case 3:
+				turn_off_all();
+				turn_on_a();
+				turn_on_b();
+			break;
+			default:
+			break;
+		}
+		for(unsigned j = 0; j < 16; j++){
+			if(j < 8){
+				turn_off_f();
+			}else{
+				turn_on_f();
+			}
+			unsigned mod = j % 8;
+			if(mod < 4){
+				turn_off_e();
+			}else{
+				turn_on_e();
+			}
+			mod = j % 4;
+			if(mod < 2){
+				turn_off_d();
+			}else{
+				turn_on_d();
+			}
+			mod = j % 2;
+			if(mod == 0){
+				turn_off_c();
+			}else{
+				turn_on_d();
+			}
+			HAL_Delay(80);
+			//uint16_t reading = take_reading();
+			while((ADC1->ISR & ADC_ISR_EOC) == 0){
+			//implement time-out
+			}
+			uint16_t reading = ADC1->DR;
+			int string_int = reading & 0x0fff;
+			char buffer [sizeof(uint16_t)*8+1];
+			itoa(string_int,buffer,10);
+			transmit_string_usart(buffer);
+			transmit_char_usart(' ');
+			if(j == 7){
+				transmit_char_usart('\r');
+				transmit_char_usart('\n');
 			}
 		}
+		transmit_char_usart('\r');
+		transmit_char_usart('\n');
 	}
 }
-
+uint16_t take_reading(void){
+	uint16_t result = 0;
+}
 void pseudo_main(void){
 	
 	//uint16_t biases[64][64];
-	for(unsigned i = 0; i < NUM_SQUARES; i++){
-		for(unsigned j = 0; j < NUM_SQUARES; j++){
-			biases[i][j] = 0;
-		}
-	}
-	initialize_biases();
+//	for(unsigned i = 0; i < NUM_SQUARES; i++){
+//		for(unsigned j = 0; j < NUM_SQUARES; j++){
+//			biases[i][j] = 0;
+//		}
+//	}
+	//initialize_biases();
 	char str[7];
 	str[0] = 'c';
 	str[1] = 'h';
@@ -161,10 +216,60 @@ void pseudo_main(void){
 		char buffer [sizeof(uint16_t)*8+1];
 		itoa(string_int,buffer,10);
 		//utoa(reading,buffer,10);
-		transmit_string_usart(buffer);
+		//transmit_string_usart(buffer);
+		//transmit_char_usart('\r');
+		//transmit_char_usart('\n');
+		scan_array(biases);
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
-		HAL_Delay(500);
+		HAL_Delay(2000);
   }
   /* USER CODE END 3 */
+}
+
+void turn_on_a(void){
+	GPIOB->BSRR |= GPIO_BSRR_BS_10;
+}
+void turn_on_b(void){
+	GPIOB->BSRR |= GPIO_BSRR_BS_11;
+}
+void turn_on_c(void){
+	GPIOB->BSRR |= GPIO_BSRR_BS_12;
+}
+void turn_on_d(void){
+	GPIOB->BSRR |= GPIO_BSRR_BS_13;
+}
+void turn_on_e(void){
+	GPIOB->BSRR |= GPIO_BSRR_BS_14;
+}
+void turn_on_f(void){
+	GPIOB->BSRR |= GPIO_BSRR_BS_15;
+}
+
+void turn_off_a(void){
+	GPIOB->BSRR |= GPIO_BSRR_BR_10;
+}
+void turn_off_b(void){
+	GPIOB->BSRR |= GPIO_BSRR_BR_11;
+}
+void turn_off_c(void){
+	GPIOB->BSRR |= GPIO_BSRR_BR_12;
+}
+void turn_off_d(void){
+	GPIOB->BSRR |= GPIO_BSRR_BR_13;
+}
+void turn_off_e(void){
+	GPIOB->BSRR |= GPIO_BSRR_BR_14;
+}
+void turn_off_f(void){
+	GPIOB->BSRR |= GPIO_BSRR_BR_15;
+}
+
+void turn_off_all(void){
+	turn_off_a();
+	turn_off_b();
+	turn_off_c();
+	turn_off_d();
+	turn_off_e();
+	turn_off_f();
 }
