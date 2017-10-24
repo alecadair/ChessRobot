@@ -1,7 +1,11 @@
 #include "hall_array_library.h"
 
-uint16_t biases[8][8];
-uint16_t board_state[8][8];
+//uint16_t biases[8][8];
+//uint16_t board_state[8][8];
+
+board_buffer current_biases;
+board_buffer current_state;
+board_buffer magnet_pos;
 
 void swap(char* a, char* b)
 {
@@ -9,6 +13,7 @@ void swap(char* a, char* b)
  *a = *b;
  *b = temp;
 }
+
 /* A utility function to reverse a string  */
 void reverse(char str[], int length){
     int start = 0;
@@ -18,6 +23,20 @@ void reverse(char str[], int length){
         start++;
         end--;
     }
+}
+board_buffer scan_bools(){
+	unsigned row = 0, col = 0;
+	board_buffer bools;
+	for(unsigned i = 0; i < 8; i++){
+		for(unsigned j = 0; j < 8; j++){
+			if(current_state.buffer[i][j] - current_biases.buffer[i][j] > THRESHOLD){
+				bools.buffer[i][j] = 1;
+			}else{
+				bools.buffer[i][j] = 0;
+			}
+		}
+	}
+		return bools;
 }
 // Implementation of itoa()
 char* itoa(int num, char* str, int base){
@@ -50,18 +69,15 @@ char* itoa(int num, char* str, int base){
     return str;
 }
 
-unsigned char** get_board_state(){
-	return 0;
+board_buffer get_board_state(){
+	board_buffer chess_board;
+	return chess_board;
 }
 
 void initialize_biases(){
 	int x = 0;
-	//zero out biases
-	for(unsigned i = 0; i < NUM_SQUARES; i++){
-		for(unsigned j = 0; j < NUM_SQUARES; j++){
-			biases[i][j] = 0;
-		}
-	}
+	board_buffer temp;
+	current_biases = scan_array(temp);
 }
 
 void transmit_string_usart(char* str){
@@ -103,30 +119,39 @@ void transmit_voltage_usart(uint16_t val){
 	transmit_char_usart('\n');
 }
 
-uint16_t** scan_array(uint16_t board_buffer[8][8]){
+board_buffer scan_array(board_buffer board){
 	//uint16_t array_values[64][64];
+	uint16_t row = 0, col = 0;
 	for(unsigned i = 0; i < 4; i++){
 		switch (i){
 			case 0:
 				turn_off_all();
+				col = 0;
 			break;
 			case 1:
 				turn_off_all();
-				turn_on_a();			
+				turn_on_a();
+				col = 2;
 			break;
 			case 2:
 				turn_off_all();
 				turn_on_b();
+				col = 4;
 			break;
 			case 3:
 				turn_off_all();
 				turn_on_a();
 				turn_on_b();
+				col = 6;
 			break;
 			default:
 			break;
 		}
 		for(unsigned j = 0; j < 16; j++){
+			row = j % 8;
+			if(j == 8){
+				col ++;
+			}
 			if(j < 8){
 				turn_off_f();
 			}else{
@@ -148,15 +173,45 @@ uint16_t** scan_array(uint16_t board_buffer[8][8]){
 			if(mod == 0){
 				turn_off_c();
 			}else{
-				turn_on_d();
+				turn_on_c();
 			}
-			HAL_Delay(80);
-			//uint16_t reading = take_reading();
-			while((ADC1->ISR & ADC_ISR_EOC) == 0){
-			//implement time-out
-			}
-			uint16_t reading = ADC1->DR;
+			HAL_Delay(10);
+			uint16_t reading = take_reading();
+			board.buffer[col][row] = reading;
+			
 			int string_int = reading & 0x0fff;
+			/*char buffer [sizeof(uint16_t)*8+1];
+			itoa(string_int,buffer,10);
+			transmit_string_usart(buffer);
+			transmit_char_usart(' ');
+			if(j == 7){
+				transmit_char_usart('\r');
+				transmit_char_usart('\n');
+			}*/
+		}
+		//transmit_char_usart('\r');
+		//transmit_char_usart('\n');
+	}
+	return board;
+}
+uint16_t take_reading(void){
+	uint16_t result = 0;
+	uint16_t reading = 0;
+	for(unsigned i = 0; i < 10; i++){
+		while((ADC1->ISR & ADC_ISR_EOC) == 0){
+		//implement time-out
+		}
+		reading = ADC1->DR & 0xfff;
+		result += reading;
+	}
+	result = result / 10;
+	return result;
+}
+
+void print_board(board_buffer board){
+	for(int i = 7; i >= 0; i--){
+		for(int j = 0; j < 8; j++){
+			uint16_t string_int = board.buffer[i][j];
 			char buffer [sizeof(uint16_t)*8+1];
 			itoa(string_int,buffer,10);
 			transmit_string_usart(buffer);
@@ -166,13 +221,9 @@ uint16_t** scan_array(uint16_t board_buffer[8][8]){
 				transmit_char_usart('\n');
 			}
 		}
-		transmit_char_usart('\r');
-		transmit_char_usart('\n');
 	}
 }
-uint16_t take_reading(void){
-	uint16_t result = 0;
-}
+
 void pseudo_main(void){
 	
 	//uint16_t biases[64][64];
@@ -211,18 +262,20 @@ void pseudo_main(void){
 		while((ADC1->ISR & ADC_ISR_EOC) == 0){
 			//implement time-out
 		}
-		reading = ADC1->DR;
-		int string_int = reading & 0x0fff;
-		char buffer [sizeof(uint16_t)*8+1];
-		itoa(string_int,buffer,10);
-		//utoa(reading,buffer,10);
-		//transmit_string_usart(buffer);
-		//transmit_char_usart('\r');
-		//transmit_char_usart('\n');
-		scan_array(biases);
+		board_buffer temp;
+		current_biases = scan_array(temp);
+		current_state = scan_array(temp);
+		magnet_pos = scan_bools();
+		print_board(current_state);
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
-		HAL_Delay(2000);
+		
+		print_board(magnet_pos);
+		/*PLACE PIECES NOW DISPLAY ON DISPLAY*/
+		/*REPORT TO SERVER*/	
+		transmit_char_usart('\r');
+		transmit_char_usart('\n');
+		HAL_Delay(500);
   }
   /* USER CODE END 3 */
 }
