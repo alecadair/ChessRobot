@@ -91,8 +91,6 @@ void sys_init(){
 	USART1->BRR = (HAL_RCC_GetHCLKFreq()/9600);
 	USART1->CR1 |= USART_CR1_TE | USART_CR1_RE; // enable usart transmitter/receiver
 	USART1->CR1 |= USART_CR1_UE; //enable USART
-
-
 }
 int main(void)
 {

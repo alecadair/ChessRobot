@@ -9,10 +9,11 @@
 
 #define NUM_SQUARES 64
 #define ROW_COL 8
-#define THRESHOLD 120
+//#define THRESHOLD 115
+
 
 typedef struct{
-	uint16_t buffer[8][8];	
+	int16_t buffer[8][8];	
 }board_buffer;
 
 void initialize_biases(void);
@@ -22,17 +23,18 @@ void transmit_char_usart(char);
 void transmit_voltage_usart(uint16_t);
 void transmit_string_usart(char*);
 void pseudo_main(void);
+board_buffer scan_bools(board_buffer*, board_buffer*);
+
 //float adcval_tovolt(uint16_t);
-board_buffer scan_array(board_buffer);
-board_buffer scan_bools();
+board_buffer scan_array(board_buffer*);
+board_buffer check_three_boards(void);
 char* itoa(int num, char* str, int base);
 void reverse(char str[], int length);
 void swap(char* a, char* b);
 void print_bools(void);
 void print_state(void);
 void print_biases(void);
-
-uint16_t take_reading(void);
+int16_t take_reading(void);
 
 void turn_on_a(void);
 void turn_on_b(void);

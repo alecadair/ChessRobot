@@ -3,9 +3,11 @@
 //uint16_t biases[8][8];
 //uint16_t board_state[8][8];
 
-board_buffer current_biases;
-board_buffer current_state;
-board_buffer magnet_pos;
+static board_buffer current_biases;
+static board_buffer current_state;
+static  board_buffer magnet_pos;
+
+const int16_t THRESHOLD = 100;
 
 void swap(char* a, char* b)
 {
@@ -24,12 +26,15 @@ void reverse(char str[], int length){
         end--;
     }
 }
-board_buffer scan_bools(){
+board_buffer scan_bools(board_buffer* state, board_buffer* biases){
 	unsigned row = 0, col = 0;
 	board_buffer bools;
-	for(unsigned i = 0; i < 8; i++){
-		for(unsigned j = 0; j < 8; j++){
-			if(current_state.buffer[i][j] - current_biases.buffer[i][j] > THRESHOLD){
+	for(int i = 0; i < 8; i++){
+		for(int j = 0; j < 8; j++){
+			int16_t current_state_val = state->buffer[i][j];
+			int16_t current_bias_val = biases->buffer[i][j];
+			int16_t current_diff = current_state_val - current_bias_val;
+			if(current_diff > THRESHOLD){
 				bools.buffer[i][j] = 1;
 			}else{
 				bools.buffer[i][j] = 0;
@@ -77,7 +82,7 @@ board_buffer get_board_state(){
 void initialize_biases(){
 	int x = 0;
 	board_buffer temp;
-	current_biases = scan_array(temp);
+	temp = scan_array(&current_biases);
 }
 
 void transmit_string_usart(char* str){
@@ -119,8 +124,9 @@ void transmit_voltage_usart(uint16_t val){
 	transmit_char_usart('\n');
 }
 
-board_buffer scan_array(board_buffer board){
+board_buffer scan_array(board_buffer* board){
 	//uint16_t array_values[64][64];
+	board_buffer state;
 	uint16_t row = 0, col = 0;
 	for(unsigned i = 0; i < 4; i++){
 		switch (i){
@@ -147,6 +153,7 @@ board_buffer scan_array(board_buffer board){
 			default:
 			break;
 		}
+		//HAL_Delay(5);
 		for(unsigned j = 0; j < 16; j++){
 			row = j % 8;
 			if(j == 8){
@@ -175,42 +182,39 @@ board_buffer scan_array(board_buffer board){
 			}else{
 				turn_on_c();
 			}
-			HAL_Delay(10);
-			uint16_t reading = take_reading();
-			board.buffer[col][row] = reading;
+			HAL_Delay(8);
+			int16_t reading = take_reading();
+			state.buffer[row][col] = reading;
 			
 			int string_int = reading & 0x0fff;
-			/*char buffer [sizeof(uint16_t)*8+1];
-			itoa(string_int,buffer,10);
-			transmit_string_usart(buffer);
-			transmit_char_usart(' ');
-			if(j == 7){
-				transmit_char_usart('\r');
-				transmit_char_usart('\n');
-			}*/
 		}
-		//transmit_char_usart('\r');
-		//transmit_char_usart('\n');
 	}
-	return board;
+	return state;
 }
-uint16_t take_reading(void){
-	uint16_t result = 0;
-	uint16_t reading = 0;
-	for(unsigned i = 0; i < 10; i++){
+int16_t take_reading(void){
+	int16_t result = 0;
+	int16_t reading = 0;
+	for(unsigned j = 0; j < 2; j++){
+		while((ADC1->ISR & ADC_ISR_EOC) == 0){
+		//implement time-out
+		}
+		reading = ADC1->DR & 0xfff;
+		reading = 0;
+	}
+	for(unsigned i = 0; i < 7; i++){
 		while((ADC1->ISR & ADC_ISR_EOC) == 0){
 		//implement time-out
 		}
 		reading = ADC1->DR & 0xfff;
 		result += reading;
 	}
-	result = result / 10;
+	result = result / 7;
 	return result;
 }
 
 void print_board(board_buffer board){
-	for(int i = 7; i >= 0; i--){
-		for(int j = 0; j < 8; j++){
+	for(int i = 7; i >= 0; i--){// i is the row
+		for(int j = 0; j < 8; j++){// j is the col
 			uint16_t string_int = board.buffer[i][j];
 			char buffer [sizeof(uint16_t)*8+1];
 			itoa(string_int,buffer,10);
@@ -245,7 +249,7 @@ void pseudo_main(void){
 	for(unsigned i = 0; i < 7; i++){
 		transmit_char_usart(str[i]);
 	}
-	uint16_t reading = 0;
+	int16_t reading = 0;
 	//look at mux 0,0,0,0,0,0 - A1
 	GPIOB->BSRR |= GPIO_BSRR_BR_10;
 	GPIOB->BSRR |= GPIO_BSRR_BR_11;
@@ -257,29 +261,56 @@ void pseudo_main(void){
 	//GPIOB->BSRR |= GPIO_BSRR_BS_12;
 
 	ADC1->CR |= ADC_CR_ADSTART;//turn on adc
+	board_buffer temp;
+//	current_biases = scan_array(temp);
+	current_biases = scan_array(&current_biases);
+	current_state = scan_array(&current_state);
+	current_biases = scan_array(&current_biases);
+
+
   while (1)
   {
 		while((ADC1->ISR & ADC_ISR_EOC) == 0){
 			//implement time-out
 		}
-		board_buffer temp;
-		current_biases = scan_array(temp);
-		current_state = scan_array(temp);
-		magnet_pos = scan_bools();
-		print_board(current_state);
-		transmit_char_usart('\r');
-		transmit_char_usart('\n');
+//		board_buffer temp;
+		//current_biases = scan_array(temp);
+		//current_state = scan_array(temp);
+		//magnet_pos = scan_bools();
+		magnet_pos = check_three_boards();
+		//print_board(current_state);
+		//transmit_char_usart('\r');
+		//transmit_char_usart('\n');
 		
 		print_board(magnet_pos);
 		/*PLACE PIECES NOW DISPLAY ON DISPLAY*/
 		/*REPORT TO SERVER*/	
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
-		HAL_Delay(500);
+		HAL_Delay(10);
   }
   /* USER CODE END 3 */
 }
-
+board_buffer check_three_boards(){
+	board_buffer temp;
+	//temp = scan_array(&current_state);
+	board_buffer board_1 = scan_bools(&current_state, &current_biases);
+	current_state = scan_array(&current_state);
+	board_buffer board_2 = scan_bools(&current_state, &current_biases);
+	current_state = scan_array(&current_state);
+	board_buffer board_3 = scan_bools(&current_state, &current_biases);
+	
+	for(unsigned i = 0; i < 8; i++){
+		for(unsigned j = 0; j < 8; j++){
+			if(board_1.buffer[i][j] && board_2.buffer[i][j] && board_3.buffer[i][j]){
+				temp.buffer[i][j] = 1;
+			}else{
+				temp.buffer[i][j] = 0;
+			}
+		}
+	}
+	return temp;
+}
 void turn_on_a(void){
 	GPIOB->BSRR |= GPIO_BSRR_BS_10;
 }
