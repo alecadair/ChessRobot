@@ -9,31 +9,41 @@
 
 #define NUM_SQUARES 64
 #define ROW_COL 8
-//#define THRESHOLD 115
+//l#define THRESHOLD 115
 
 
 typedef struct{
 	int16_t buffer[8][8];	
 }board_buffer;
 
+typedef struct{
+	char buf[5];
+}move_string;
+
 void initialize_biases(void);
 
 board_buffer get_board_state(void);
 void transmit_char_usart(char);
-void transmit_voltage_usart(uint16_t);
+//void transmit_voltage_usart(uint16_t );
 void transmit_string_usart(char*);
 void pseudo_main(void);
-board_buffer scan_bools(board_buffer*, board_buffer*);
 
-//float adcval_tovolt(uint16_t);
-board_buffer scan_array(board_buffer*);
-board_buffer check_three_boards(void);
-char* itoa(int num, char* str, int base);
-void reverse(char str[], int length);
+void calculate_move(board_buffer*, board_buffer*, move_string*);
+void scan_bools(board_buffer* , board_buffer*, board_buffer*);
+
+
+void zero_out_board(board_buffer*);
+//float adcval_tovolt(uint16_t );
+void scan_array(board_buffer*);
+board_buffer check_three_boards(/*board_buffer* temp,*/ board_buffer* board_1, board_buffer* board_2,
+																														board_buffer* board_3);
+char* itoa(int16_t num, char* str, int16_t base);
+void reverse(char str[], int16_t length);
 void swap(char* a, char* b);
-void print_bools(void);
-void print_state(void);
-void print_biases(void);
+void print_board(board_buffer);
+//void print16_t _bools(void);
+//void print16_t _state(void);
+//void print16_t _biases(void);
 int16_t take_reading(void);
 
 void turn_on_a(void);
