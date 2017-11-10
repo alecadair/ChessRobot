@@ -4,7 +4,7 @@ board_buffer current_biases;
 board_buffer cur_state;
 board_buffer magnet_pos;
 
-const int16_t THRESHOLD = 100;
+const int16_t THRESHOLD = 450;
 
 void swap(char* a, char* b)
 {
@@ -276,7 +276,7 @@ void pseudo_main(void){
 		zero_out_board(&board_3);
 		//zero_out_board(&temp);
 		//current_biases = scan_array(temp);
-		scan_array(&cur_state);
+		//scan_array(&cur_state);
 		//magnet_pos = scan_bools();
 		board_state1 = check_three_boards(&board_1, &board_2, &board_3);
 		print_board(board_state1);
@@ -286,19 +286,21 @@ void pseudo_main(void){
 		transmit_char_usart('5');
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
-		HAL_Delay(1000);
+		HAL_Delay(1500);
 		transmit_char_usart('4');
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
-		HAL_Delay(1000);
+		HAL_Delay(1500);
+		
+		board_buffer board_state3 = check_three_boards(&board_1, &board_2, &board_3);
 		transmit_char_usart('3');
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
-		HAL_Delay(1000);		
+		HAL_Delay(1500);		
 		transmit_char_usart('2');
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
-		HAL_Delay(1000);
+		HAL_Delay(1500);
 		transmit_char_usart('1');
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
@@ -306,6 +308,7 @@ void pseudo_main(void){
 		transmit_char_usart('\n');
 		HAL_Delay(1000);
 		zero_out_board(&board_1); zero_out_board(&board_2); zero_out_board(&board_3);
+		//scan_array(&cur_state);
 		board_state2 = check_three_boards(&board_1, &board_2, &board_3);
 		print_board(board_state2);
 		transmit_char_usart('\r');
@@ -382,6 +385,7 @@ board_buffer check_three_boards(board_buffer* board_1, board_buffer* board_2,
 																														board_buffer* board_3){
 	board_buffer temp;
 	//temp = scan_array(&cur_state);
+	scan_array(&cur_state);
 	scan_bools(&cur_state, &current_biases, board_1);
 	scan_array(&cur_state);
 	scan_bools(&cur_state, &current_biases, board_2);
