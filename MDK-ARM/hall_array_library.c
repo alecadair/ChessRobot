@@ -1,16 +1,29 @@
 #include "hall_array_library.h"
 
-board_buffer current_biases;
-board_buffer cur_state;
-board_buffer magnet_pos;
+//board_buffer current_biases;
+//board_buffer cur_state;
+//board_buffer magnet_pos;
 
-const int16_t THRESHOLD = 450;
+const int16_t THRESHOLD = 100;
+int16_t pieces_on_board = 32;
+//const int16_t THRESHOLD = 100;
 
 void swap(char* a, char* b)
 {
  int16_t temp = *a;
  *a = *b;
  *b = temp;
+}
+
+int16_t count_pieces(board_buffer* board){
+	int16_t result = 0;
+	for(int i = 0; i < 8; i++){
+		for(int j = 0; j < 8; j++){
+			if(board->buffer[i][j] == 1)
+				result ++;
+		}
+	}
+	return result;
 }
 
 /* A utility function to reverse a string  */
@@ -28,10 +41,10 @@ void scan_bools(board_buffer* state, board_buffer* biases, board_buffer* bools){
 	//board_buffer bools;
 	for(int16_t i = 0; i < 8; i++){
 		for(int16_t j = 0; j < 8; j++){
-			//int16_t current_bias_val = biases->buffer[i][j];
-			//int16_t cur_state_val = state->buffer[i][j];
-			int16_t current_bias_val = current_biases.buffer[i][j];
-			int16_t cur_state_val = cur_state.buffer[i][j];
+			int16_t current_bias_val = biases->buffer[i][j];
+			int16_t cur_state_val = state->buffer[i][j];
+			//int16_t current_bias_val = current_biases.buffer[i][j];
+			//int16_t cur_state_val = cur_state.buffer[i][j];
 			int16_t current_diff = cur_state_val - current_bias_val;
 			if(current_diff > THRESHOLD){
 				bools->buffer[i][j] = 1;
@@ -176,9 +189,10 @@ void scan_array(board_buffer* buf){
 			}else{
 				turn_on_c();
 			}
-			for(int32_t k = 0; k < 1000; k++){
-				__nop();
-			}
+		//	for(int32_t k = 0; k < 10000; k++){
+		//		__nop();
+		//	}
+			HAL_Delay(5);
 			int16_t reading = take_reading();
 			buf->buffer[row][col] = reading;
 			
@@ -197,14 +211,14 @@ int16_t take_reading(void){
 		reading = ADC1->DR & 0xfff;
 		reading = 0;
 	}
-	for(unsigned i = 0; i < 7; i++){
+	for(unsigned i = 0; i < 5; i++){
 		while((ADC1->ISR & ADC_ISR_EOC) == 0){
 		//implement time-out
 		}
 		reading = ADC1->DR & 0xfff;
 		result += reading;
 	}
-	result = result / 7;
+	result = result / 5;
 	return result;
 }
 
@@ -226,6 +240,9 @@ void print_board(board_buffer board){
 
 void pseudo_main(void){
 	
+	board_buffer* cur_state = malloc(sizeof(board_buffer));
+	board_buffer* current_biases = malloc(sizeof(board_buffer));
+	board_buffer* mag_pos = malloc(sizeof(mag_pos));
 	//unsigned int16_t biases[64][64];
 //	for(unsigned i = 0; i < NUM_SQUARES; i++){
 //		for(unsigned j = 0; j < NUM_SQUARES; j++){
@@ -245,6 +262,7 @@ void pseudo_main(void){
 	for(unsigned i = 0; i < 7; i++){
 		transmit_char_usart(str[i]);
 	}
+	
 	//int16_t reading = 0;
 	//look at mux 0,0,0,0,0,0 - A1
 	GPIOB->BSRR |= GPIO_BSRR_BR_10;
@@ -259,9 +277,9 @@ void pseudo_main(void){
 	ADC1->CR |= ADC_CR_ADSTART;//turn on adc
 //	board_buffer temp;
 //	current_biases = scan_array(temp);
-	scan_array(&current_biases);
-	scan_array(&cur_state);
-	scan_array(&current_biases);
+	scan_array(current_biases);
+	scan_array(cur_state);
+	scan_array(current_biases);
 
 	board_buffer board_state1, board_state2;
 
@@ -278,7 +296,7 @@ void pseudo_main(void){
 		//current_biases = scan_array(temp);
 		//scan_array(&cur_state);
 		//magnet_pos = scan_bools();
-		board_state1 = check_three_boards(&board_1, &board_2, &board_3);
+		board_state1 = check_three_boards(&board_1, &board_2, &board_3, cur_state,current_biases);
 		print_board(board_state1);
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
@@ -286,21 +304,21 @@ void pseudo_main(void){
 		transmit_char_usart('5');
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
-		HAL_Delay(1500);
+		HAL_Delay(1000);
 		transmit_char_usart('4');
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
-		HAL_Delay(1500);
+		HAL_Delay(1000);
 		
-		board_buffer board_state3 = check_three_boards(&board_1, &board_2, &board_3);
+		board_buffer board_state3 = check_three_boards(&board_1, &board_2, &board_3, cur_state, current_biases);
 		transmit_char_usart('3');
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
-		HAL_Delay(1500);		
+		HAL_Delay(1000);		
 		transmit_char_usart('2');
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
-		HAL_Delay(1500);
+		HAL_Delay(1000);
 		transmit_char_usart('1');
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
@@ -309,7 +327,7 @@ void pseudo_main(void){
 		HAL_Delay(1000);
 		zero_out_board(&board_1); zero_out_board(&board_2); zero_out_board(&board_3);
 		//scan_array(&cur_state);
-		board_state2 = check_three_boards(&board_1, &board_2, &board_3);
+		board_state2 = check_three_boards(&board_1, &board_2, &board_3, cur_state,current_biases);
 		print_board(board_state2);
 		transmit_char_usart('\r');
 		transmit_char_usart('\n');
@@ -382,15 +400,15 @@ void calculate_move(board_buffer* prev_state, board_buffer* new_state, move_stri
 	return;
 }
 board_buffer check_three_boards(board_buffer* board_1, board_buffer* board_2,
-																														board_buffer* board_3){
+																board_buffer* board_3, board_buffer* cur_state, board_buffer* current_biases){
 	board_buffer temp;
 	//temp = scan_array(&cur_state);
-	scan_array(&cur_state);
-	scan_bools(&cur_state, &current_biases, board_1);
-	scan_array(&cur_state);
-	scan_bools(&cur_state, &current_biases, board_2);
-	scan_array(&cur_state);
-	scan_bools(&cur_state, &current_biases, board_3);
+	scan_array(cur_state);
+	scan_bools(cur_state, current_biases, board_1);
+	scan_array(cur_state);
+	scan_bools(cur_state, current_biases, board_2);
+	scan_array(cur_state);
+	scan_bools(cur_state, current_biases, board_3);
 	
 	for(unsigned i = 0; i < 8; i++){
 		for(unsigned j = 0; j < 8; j++){

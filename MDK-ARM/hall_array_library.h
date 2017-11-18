@@ -36,11 +36,12 @@ void zero_out_board(board_buffer*);
 //float adcval_tovolt(uint16_t );
 void scan_array(board_buffer*);
 board_buffer check_three_boards(/*board_buffer* temp,*/ board_buffer* board_1, board_buffer* board_2,
-																														board_buffer* board_3);
+																														board_buffer* board_3, board_buffer*, board_buffer*);
 char* itoa(int16_t num, char* str, int16_t base);
 void reverse(char str[], int16_t length);
 void swap(char* a, char* b);
 void print_board(board_buffer);
+int16_t count_pieces(board_buffer*);
 //void print16_t _bools(void);
 //void print16_t _state(void);
 //void print16_t _biases(void);
